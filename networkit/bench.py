@@ -13,11 +13,8 @@ n_edges = int(metadata['n_edges'][0])
 directed = bool(metadata['directed'][0])
 print(f'Graph: {n_nodes} nodes, {n_edges} edges, directed={directed}')
 
-indices_pl = conn.execute('SELECT target FROM csr_graph_indices_edges').pl()
-indices_arrow = pa.array(indices_pl['target'].to_list(), type=pa.uint64())
-
-indptr_pl = conn.execute('SELECT ptr FROM csr_graph_indptr_edges').pl()
-indptr_arrow = pa.array(indptr_pl['ptr'].to_list(), type=pa.uint64())
+indices_arrow = conn.execute('SELECT target::ubigint as target FROM csr_graph_indices_edges').fetch_arrow_table()['target'].combine_chunks()
+indptr_arrow = conn.execute('SELECT ptr::ubigint as ptr FROM csr_graph_indptr_edges').fetch_arrow_table()['ptr'].combine_chunks()
 
 print(f'CSR arrays: indices={len(indices_arrow)}, indptr={len(indptr_arrow)}')
 
