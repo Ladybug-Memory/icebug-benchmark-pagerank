@@ -1,0 +1,11 @@
+[project]
+name = "networkit-benchmark"
+version = "0.1.0"
+dependencies = [
+    "duckdb",
+    "networkit",
+    "polars",
+    "pyarrow",
+    "numpy",
+    "tqdm",
+]

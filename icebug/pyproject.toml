@@ -1,0 +1,9 @@
+[project]
+name = "icebug-benchmark"
+version = "0.1.0"
+dependencies = [
+    "duckdb",
+    "polars",
+    "pyarrow",
+    "numpy",
+]
