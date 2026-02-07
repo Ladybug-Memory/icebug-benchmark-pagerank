@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import duckdb
+import heapq
 import networkit as nk
 import pyarrow as pa
 import time
@@ -34,3 +35,7 @@ start = time.time()
 pr = nk.centrality.PageRank(graph, damp=0.85, tol=1e-8)
 pr.run()
 print(f'PageRank done in {time.time()-start:.5f}s, {len(pr.scores())} scores')
+top_10 = heapq.nlargest(10, enumerate(pr.scores()), key=lambda x: x[1])
+print('\nTop 10 nodes and scores:')
+for i, (node, score) in enumerate(top_10):
+    print(f'{i+1}. Node {node}: {score}')
