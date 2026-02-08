@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 import duckdb
+import heapq
 import networkit as nk
 import pyarrow as pa
 import time
-import heapq
 
 conn = duckdb.connect("csr_graph.db")
 metadata = conn.execute("SELECT * FROM csr_graph_metadata").pl()
@@ -26,12 +26,11 @@ indptr_arrow = (
 
 print(f"CSR arrays: indices={len(indices_arrow)}, indptr={len(indptr_arrow)}")
 
-nk.setNumberOfThreads(1)
 graph = nk.graph.Graph.fromCSR(n_nodes, directed, indices_arrow, indptr_arrow)
 print(f"Created graph: {graph.numberOfNodes()} nodes, {graph.numberOfEdges()} edges")
 
 start = time.time()
-pr = nk.centrality.PageRank(graph, damp=0.85, tol=1e-8)
+pr = nk.centrality.PageRank(graph, damp=0.85, tol=1e-6)
 pr.run()
 print(f"PageRank done in {time.time()-start:.5f}s, {len(pr.scores())} scores")
 top_10 = heapq.nlargest(10, enumerate(pr.scores()), key=lambda x: x[1])

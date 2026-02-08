@@ -24,9 +24,9 @@ indptr_arrow = (
     .combine_chunks()
 )
 
+
 print(f"CSR arrays: indices={len(indices_arrow)}, indptr={len(indptr_arrow)}")
 
-nk.setNumberOfThreads(1)
 graph = nk.graph.Graph(n_nodes, directed)
 for u in tqdm(range(n_nodes), desc="Building graph"):
     start = indptr_arrow[u].as_py()
@@ -37,7 +37,7 @@ for u in tqdm(range(n_nodes), desc="Building graph"):
 print(f"Created graph: {graph.numberOfNodes()} nodes, {graph.numberOfEdges()} edges")
 
 start = time.time()
-pr = nk.centrality.PageRank(graph, damp=0.85, tol=1e-8)
+pr = nk.centrality.PageRank(graph, damp=0.85, tol=1e-6)
 pr.run()
 print(f"PageRank done in {time.time()-start:.5f}s, {len(pr.scores())} scores")
 top_10 = heapq.nlargest(10, enumerate(pr.scores()), key=lambda x: x[1])

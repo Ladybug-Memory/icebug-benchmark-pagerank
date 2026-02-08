@@ -44,7 +44,7 @@ icebug is not yet available as a pip package. To set up the icebug virtual envir
 
 3. Return to the benchmark directory and run benchmarks using the icebug venv.
 
-## Benchmark Results
+## Benchmark Results (single threaded)
 
 | Metric | icebug | networkit |
 |--------|--------|-----------|
@@ -57,3 +57,8 @@ icebug is not yet available as a pip package. To set up the icebug virtual envir
 **Memory**: icebug uses **29% less memory** than networkit.
 
 *Graph tested: 115,475,324 nodes, 20,000,000 edges (undirected)*
+
+## Benchmark Setup (multi-threaded)
+
+Run with OMP_NUM_THREADS=8. Higher number of threads and tight convergance such as tol=1e-8 are known
+to be problematic.
