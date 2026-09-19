@@ -1,33 +1,30 @@
 #!/usr/bin/env python3
-import duckdb
 import heapq
-import networkit as nk
-import pyarrow as pa
+import sys
 import time
+from pathlib import Path
 from tqdm import tqdm
 
-conn = duckdb.connect("csr_graph.db")
-metadata = conn.execute("SELECT * FROM csr_graph_metadata").pl()
-n_nodes = int(metadata["n_nodes"][0])
-n_edges = int(metadata["n_edges"][0])
-directed = bool(metadata["directed"][0])
+import networkit as nk
+import pyarrow.parquet as pq
+
+DATA_DIR = Path(__file__).resolve().parent.parent / (sys.argv[1] if len(sys.argv) > 1 else "wiki-Talk-csr")
+
+n_nodes = pq.read_table(next(DATA_DIR.glob("nodes_*.parquet")), columns=["id"]).num_rows
+indices_arrow = pq.read_table(next(DATA_DIR.glob("indices_*.parquet")), columns=["target"])[
+    "target"
+].combine_chunks()
+indptr_arrow = pq.read_table(next(DATA_DIR.glob("indptr_*.parquet")), columns=["ptr"])[
+    "ptr"
+].combine_chunks()
+n_edges = len(indices_arrow)
+directed = True  # both LDBC CSR graphs here are directed
+assert len(indptr_arrow) == n_nodes + 1
 print(f"Graph: {n_nodes} nodes, {n_edges} edges, directed={directed}")
-
-indices_arrow = (
-    conn.execute("SELECT target::ubigint as target FROM csr_graph_indices_edges")
-    .fetch_arrow_table()["target"]
-    .combine_chunks()
-)
-indptr_arrow = (
-    conn.execute("SELECT ptr::ubigint as ptr FROM csr_graph_indptr_edges")
-    .fetch_arrow_table()["ptr"]
-    .combine_chunks()
-)
-
 
 print(f"CSR arrays: indices={len(indices_arrow)}, indptr={len(indptr_arrow)}")
 
-graph = nk.graph.Graph(n_nodes, directed)
+graph = nk.graph.Graph(n_nodes, True, directed)  # weighted + directed
 for u in tqdm(range(n_nodes), desc="Building graph"):
     start = indptr_arrow[u].as_py()
     end = indptr_arrow[u + 1].as_py()

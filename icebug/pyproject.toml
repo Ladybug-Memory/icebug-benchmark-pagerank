@@ -3,8 +3,6 @@ name = "icebug-benchmark"
 version = "0.1.0"
 dependencies = [
     "icebug",
-    "duckdb",
-    "polars",
     "pyarrow",
     "numpy",
 ]
