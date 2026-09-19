@@ -75,7 +75,13 @@ Top-10 nodes and scores are identical between engines on both graphs.
 |---|---|---|
 | Build / load | transpose 1.87s | edge-by-edge ~12s |
 | PageRank | **0.57s** | 1.00s |
+| Max RSS | **1.12 GiB** (1,179,368 kB) | 1.89 GiB (1,976,648 kB) |
 | Top node | 2031237: 8.7165e-05 | identical |
+
+Max RSS measured with `/usr/bin/time -v`, run from each bench dir as
+`/usr/bin/time -v .venv/bin/python bench.py cit-Patents-csr`
+(icebug: 3.31s wall; networkit: 15.92s wall). `GraphR`'s read-only CSR
+uses ~40% less peak memory than the mutable `GraphW` on this graph.
 
 ## Notes / gotchas found while benchmarking
 

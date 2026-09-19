@@ -4,10 +4,11 @@ import sys
 import time
 from pathlib import Path
 
-import icebug as nk
+import icebug as ib
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
+from scipy.sparse import csr_matrix
 
 DATA_DIR = Path(__file__).resolve().parent.parent / (sys.argv[1] if len(sys.argv) > 1 else "wiki-Talk-csr")
 
@@ -25,23 +26,42 @@ print(f"Graph: {n_nodes} nodes, {n_edges} edges, directed={directed}")
 
 print(f"CSR arrays: indices={len(indices_arrow)}, indptr={len(indptr_arrow)}")
 
+def transpose_csr(indptr, indices):
+    indptr_np = indptr.to_numpy()
+    indices_np = indices.to_numpy()
+
+    n = len(indptr_np) - 1
+    m = len(indices_np)
+
+    data = np.ones(m, dtype=np.int8)
+    A = csr_matrix((data, indices_np, indptr_np), shape=(n, n))
+    del indptr_np, indices_np, data
+
+    # Pure transpose: in-edges only, no symmetrization, so the graph stays
+    # directed and PageRank remains comparable with the networkit bench.
+    T = A.transpose().tocsr()
+    del A
+
+    return T.indptr, T.indices
+
+
 # GraphR stores out-edges only unless the transposed CSR is also given.
-# Directed PageRank traverses in-neighbors, so build the transpose
-# (CSC) here; without it GraphR::inNeighbors segfaults.
+# Directed PageRank traverses in-neighbors, so build the true transpose
+# here and keep the original CSR as out-edges; without in-edge storage
+# GraphR::inNeighbors segfaults.
 t = time.time()
-out_ptr = indptr_arrow.to_numpy().astype(np.int64)
-out_idx = indices_arrow.to_numpy().astype(np.int64)
-sources = np.repeat(np.arange(n_nodes, dtype=np.int64), np.diff(out_ptr))
-order = np.argsort(out_idx, kind="stable")
-in_indices = pa.array(sources[order], type=pa.uint64())
-in_indptr = pa.array(np.concatenate(([0], np.cumsum(np.bincount(out_idx, minlength=n_nodes)))), type=pa.uint64())
+t_indptr, t_indices = transpose_csr(indptr_arrow, indices_arrow)
+in_indices = pa.array(t_indices, type=pa.uint64())
+in_indptr = pa.array(t_indptr, type=pa.uint64())
 print(f"Transpose built in {time.time()-t:.2f}s")
 
-graph = nk.graph.Graph.fromCSR(n_nodes, directed, indices_arrow, indptr_arrow, in_indices, in_indptr)
+graph = ib.graph.Graph.fromCSR(
+    n_nodes, directed, indices_arrow, indptr_arrow, in_indices, in_indptr
+)
 print(f"Created graph: {graph.numberOfNodes()} nodes, {graph.numberOfEdges()} edges")
 
 start = time.time()
-pr = nk.centrality.PageRank(graph, damp=0.85, tol=1e-6)
+pr = ib.centrality.PageRank(graph, damp=0.85, tol=1e-6)
 pr.run()
 print(f"PageRank done in {time.time()-start:.5f}s, {len(pr.scores())} scores")
 top_10 = heapq.nlargest(10, enumerate(pr.scores()), key=lambda x: x[1])
