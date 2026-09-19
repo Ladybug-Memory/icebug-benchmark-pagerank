@@ -12,6 +12,7 @@ from scipy.sparse import csr_matrix
 
 DATA_DIR = Path(__file__).resolve().parent.parent / (sys.argv[1] if len(sys.argv) > 1 else "wiki-Talk-csr")
 
+t = time.time()
 n_nodes = pq.read_table(next(DATA_DIR.glob("nodes_*.parquet")), columns=["id"]).num_rows
 indices_arrow = pq.read_table(next(DATA_DIR.glob("indices_*.parquet")), columns=["target"])[
     "target"
@@ -19,6 +20,7 @@ indices_arrow = pq.read_table(next(DATA_DIR.glob("indices_*.parquet")), columns=
 indptr_arrow = pq.read_table(next(DATA_DIR.glob("indptr_*.parquet")), columns=["ptr"])[
     "ptr"
 ].combine_chunks()
+print(f"Load done in {time.time()-t:.2f}s")
 n_edges = len(indices_arrow)
 directed = True  # both LDBC CSR graphs here are directed
 assert len(indptr_arrow) == n_nodes + 1
@@ -49,6 +51,7 @@ def transpose_csr(indptr, indices):
 # Directed PageRank traverses in-neighbors, so build the true transpose
 # here and keep the original CSR as out-edges; without in-edge storage
 # GraphR::inNeighbors segfaults.
+t_build = time.time()
 t = time.time()
 t_indptr, t_indices = transpose_csr(indptr_arrow, indices_arrow)
 in_indices = pa.array(t_indices, type=pa.uint64())
@@ -58,6 +61,7 @@ print(f"Transpose built in {time.time()-t:.2f}s")
 graph = ib.graph.Graph.fromCSR(
     n_nodes, directed, indices_arrow, indptr_arrow, in_indices, in_indptr
 )
+print(f"Build done in {time.time()-t_build:.2f}s")
 print(f"Created graph: {graph.numberOfNodes()} nodes, {graph.numberOfEdges()} edges")
 
 start = time.time()

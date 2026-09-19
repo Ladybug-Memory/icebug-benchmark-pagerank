@@ -3,9 +3,9 @@ import heapq
 import sys
 import time
 from pathlib import Path
-from tqdm import tqdm
 
-import networkit as nk
+import networkx as nx
+import numpy as np
 import pyarrow.parquet as pq
 
 DATA_DIR = Path(__file__).resolve().parent.parent / (sys.argv[1] if len(sys.argv) > 1 else "wiki-Talk-csr")
@@ -27,21 +27,22 @@ print(f"Graph: {n_nodes} nodes, {n_edges} edges, directed={directed}")
 print(f"CSR arrays: indices={len(indices_arrow)}, indptr={len(indptr_arrow)}")
 
 t = time.time()
-graph = nk.graph.Graph(n_nodes, True, directed)  # weighted + directed
-for u in tqdm(range(n_nodes), desc="Building graph"):
-    start = indptr_arrow[u].as_py()
-    end = indptr_arrow[u + 1].as_py()
-    for idx in range(start, end):
-        v = indices_arrow[idx].as_py()
-        graph.addEdge(u, v)
+indptr_np = indptr_arrow.to_numpy().astype(np.int64)
+indices_np = indices_arrow.to_numpy().astype(np.int64)
+sources = np.repeat(np.arange(n_nodes, dtype=np.int64), np.diff(indptr_np)).tolist()
+targets = indices_np.tolist()
+del indptr_np, indices_np
+graph = nx.DiGraph()
+graph.add_nodes_from(range(n_nodes))
+graph.add_edges_from(zip(sources, targets))
+del sources, targets
 print(f"Build done in {time.time()-t:.2f}s")
-print(f"Created graph: {graph.numberOfNodes()} nodes, {graph.numberOfEdges()} edges")
+print(f"Created graph: {graph.number_of_nodes()} nodes, {graph.number_of_edges()} edges")
 
 start = time.time()
-pr = nk.centrality.PageRank(graph, damp=0.85, tol=1e-6)
-pr.run()
-print(f"PageRank done in {time.time()-start:.5f}s, {len(pr.scores())} scores")
-top_10 = heapq.nlargest(10, enumerate(pr.scores()), key=lambda x: x[1])
+scores = nx.pagerank(graph, alpha=0.85, tol=1e-6)
+print(f"PageRank done in {time.time()-start:.5f}s, {len(scores)} scores")
+top_10 = heapq.nlargest(10, scores.items(), key=lambda x: x[1])
 print("\nTop 10 nodes and scores:")
 for i, (node, score) in enumerate(top_10):
     print(f"{i+1}. Node {node}: {score}")
